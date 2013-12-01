@@ -1,0 +1,35 @@
+{
+  "name": "es-utils",
+  "version": "0.0.1",
+  "description": "Elasticsearch utilities",
+  "main": "lib/index.js",
+  "bin": {
+    "es-utils": "cli.js"
+  },
+  "dependencies": {
+    "JSONStream": "~0.7.1",
+    "assert-plus": "~0.1.5",
+    "commander": "~2.1.0",
+    "event-stream": "~3.0.16",
+    "multimeter": "~0.1.1",
+    "progress": "~1.1.2",
+    "request": "~2.27.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/justinrainbow/es-utils.git"
+  },
+  "keywords": [
+    "elasticsearch",
+    "es"
+  ],
+  "author": "Justin Rainbow",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/justinrainbow/es-utils/issues"
+  }
+}
