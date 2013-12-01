@@ -88,6 +88,7 @@ program
 
       function fileProgress() {
         var file = fs.createWriteStream(cmd.output),
+            str = '',
             bar,
             cnt = 0;
 
@@ -109,15 +110,25 @@ program
 
         search
           .on('data', function (doc) {
-            file.write(JSON.stringify(doc) + '\n', 'utf8', function () {
-              cnt ++;
+            str += JSON.stringify(doc) + '\n';
 
-              bar.ratio(cnt, search.total);
-            });
+            if (cnt % 1000 === 0) {
+              flush();
+            }
+            cnt ++;
+
+            bar.ratio(cnt, search.total);
           })
           .on('end', function () {
-            file.end();
+            flush(file.end.bind(file));
           });
+
+        function flush(cb) {
+          file.write(str, 'utf8', function () {
+            cb && cb();
+          });
+          str = '';
+        }
       }
 
       function importProgress() {
