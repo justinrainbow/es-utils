@@ -7,6 +7,7 @@ var ProgressBar = require('progress');
 var multimeter  = require('multimeter');
 var Exporter    = require('../lib/exporter');
 var Indexer     = require('../lib/indexer');
+var es          = require('event-stream');
 
 
 program.name = 'es';
@@ -176,6 +177,80 @@ program
       }
     });
   });
+
+program
+  .command('import <file>')
+  .option('-s, --size [size]', 'Number of records per request', Number, 1000)
+  .action(function (file, cmd) {
+    var indexer = new Indexer({
+      host:      program.to,
+      batchSize: cmd.size
+    });
+
+    var totalRead = 0,
+        totalIndexed = 0,
+        failures = [];
+
+    var multi = multimeter(process);
+    multi.on('^C', process.exit);
+    multi.charm.reset();
+
+    multi.write(util.format(
+      'Importing %s to %s\n',
+      file,
+      program.to
+    ));
+
+
+    multi.write('import:\n');
+
+    var bar = multi(10, 2, {
+      width: 50,
+      solid: {
+        text: '+',
+        foreground: 'yellow'
+      },
+      empty: {
+        text: ' '
+      }
+    });
+
+    indexer
+      .on('data', function (data) {
+        var op = data.index;
+
+        if (op.ok !== true) {
+          failures.push(op);
+        }
+
+        totalIndexed ++;
+
+        update();
+      });
+
+    process.on('exit', function () {
+      if (failures.length) {
+        console.log('The following docs failed to import');
+        console.log(JSON.stringify(failures, null, 2));
+      }
+    });
+
+    fs.createReadStream(file)
+      .pipe(es.split())
+      .pipe(es.parse())
+      .on('data', function (data) {
+        totalRead ++;
+        indexer.write(data);
+        update();
+      })
+      .on('end', function () {
+        indexer.end();
+      });
+
+    function update() {
+      bar.ratio(totalIndexed, totalRead, util.format('%d / %d (%d failures)', totalIndexed, totalRead, failures.length));
+    }
+  })
 
 
 function parseHost(host) {
