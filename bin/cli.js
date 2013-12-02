@@ -14,7 +14,8 @@ program.name = 'es';
 
 program
   .option('-f, --from <host>', 'Source host', parseHost)
-  .option('-t, --to [host]', 'Target host', parseHost);
+  .option('-t, --to [host]', 'Target host', parseHost)
+  .option('-q, --quiet', 'Quiet time', Boolean);
 
 
 program
@@ -31,15 +32,19 @@ program
       delay:     cmd.delay
     });
 
-    var multi = multimeter(process);
-    multi.on('^C', process.exit);
-    multi.charm.reset();
+    var multi;
 
-    multi.write(util.format(
-      'Exporting %s from %s\n',
-      idx,
-      program.from
-    ));
+    if (! program.quiet) {
+      multi = multimeter(process);
+      multi.on('^C', process.exit);
+      multi.charm.reset();
+
+      multi.write(util.format(
+        'Exporting %s from %s\n',
+        idx,
+        program.from
+      ));
+    }
 
     var bars = [];
 
@@ -60,26 +65,28 @@ program
       function exportProgress() {
         var bar, cnt = 0;
 
-        multi.write('export:\n');
+        if (! program.quiet) {
+          multi.write('export:\n');
 
-        bar = multi(10, 2 + bars.length, {
-          width: 50,
-          solid: {
-            text: '>',
-            foreground: 'green'
-          },
-          empty: {
-            text: ' '
-          }
-        });
+          bar = multi(10, 2 + bars.length, {
+            width: 50,
+            solid: {
+              text: '>',
+              foreground: 'green'
+            },
+            empty: {
+              text: ' '
+            }
+          });
 
-        bars.push(bar);
+          bars.push(bar);
+        }
 
         search
           .on('data', function () {
             cnt ++;
 
-            bar.ratio(cnt, search.total);
+            bar && bar.ratio(cnt, search.total);
           })
           .on('end', function () {
             console.log('\n');
@@ -92,21 +99,23 @@ program
             bar,
             cnt = 0;
 
-        multi.write('file:\n');
+        if (! program.quiet) {
+          multi.write('file:\n');
 
-        bar = multi(10, 2 + bars.length, {
-          width: 50,
-          solid: {
-            text: '|',
-            foreground: 'white',
-            background: 'cyan'
-          },
-          empty: {
-            text: ' '
-          }
-        });
+          bar = multi(10, 2 + bars.length, {
+            width: 50,
+            solid: {
+              text: '|',
+              foreground: 'white',
+              background: 'cyan'
+            },
+            empty: {
+              text: ' '
+            }
+          });
 
-        bars.push(bar);
+          bars.push(bar);
+        }
 
         search
           .on('data', function (doc) {
@@ -117,7 +126,7 @@ program
             }
             cnt ++;
 
-            bar.ratio(cnt, search.total);
+            bar && bar.ratio(cnt, search.total);
           })
           .on('end', function () {
             flush(file.end.bind(file));
@@ -140,20 +149,22 @@ program
               batchSize: cmd.size
             });
 
-        multi.write('import:\n');
+        if (! program.quiet) {
+          multi.write('import:\n');
 
-        bar = multi(10, 2 + bars.length, {
-          width: 50,
-          solid: {
-            text: '+',
-            foreground: 'yellow'
-          },
-          empty: {
-            text: ' '
-          }
-        });
+          bar = multi(10, 2 + bars.length, {
+            width: 50,
+            solid: {
+              text: '+',
+              foreground: 'yellow'
+            },
+            empty: {
+              text: ' '
+            }
+          });
 
-        bars.push(bar);
+          bars.push(bar);
+        }
 
         indexer
           .on('data', function (data) {
@@ -165,7 +176,7 @@ program
 
             cnt ++;
 
-            bar.ratio(cnt, search.total, util.format('%d / %d (%d failed)', cnt, search.total, failures.length));
+            bar && bar.ratio(cnt, search.total, util.format('%d / %d (%d failed)', cnt, search.total, failures.length));
           });
 
         process.on('exit', function () {
