@@ -24,12 +24,24 @@ program
   .option('-d, --delay [delay]', 'Time to wait between requests (in ms)', Number, 100)
   .option('-r, --rename [rename]', 'Rename the index during import', String)
   .option('-o, --output [file]', 'Filename to write the exported JSON data to', String)
+  .option('--query [query]', 'Optionally limit the results to only those matching this query', String)
   .action(function (idx, cmd) {
+    if (cmd.query) {
+      try {
+        cmd.query = JSON.parse(cmd.query);
+      } catch (e) {
+        console.error('Unable to parse the provided query');
+        console.error(e.stack);
+        process.exit(1);
+      }
+    }
+
     var ex = new Exporter({
       host:      program.from,
       index:     idx,
       batchSize: cmd.size,
-      delay:     cmd.delay
+      delay:     cmd.delay,
+      query:     cmd.query
     });
 
     var multi;
@@ -116,6 +128,10 @@ program
 
           bars.push(bar);
         }
+
+        file.on('finish', function () {
+          multi.destroy();
+        });
 
         search
           .on('data', function (doc) {
