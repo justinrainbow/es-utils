@@ -8,7 +8,7 @@ var multimeter  = require('multimeter');
 var Exporter    = require('../lib/exporter');
 var Indexer     = require('../lib/indexer');
 var es          = require('event-stream');
-
+var zlib        = require('zlib');
 
 program.name = 'es';
 
@@ -25,6 +25,7 @@ program
   .option('-r, --rename [rename]', 'Rename the index during import', String)
   .option('-o, --output [file]', 'Filename to write the exported JSON data to', String)
   .option('--query [query]', 'Optionally limit the results to only those matching this query', String)
+  .option('-c, --compress [number]', 'Compress the output', Number, 9)
   .action(function (idx, cmd) {
     if (cmd.query) {
       try {
@@ -71,8 +72,6 @@ program
       if (program.to) {
         importProgress();
       }
-
-      search.next();
 
       function exportProgress() {
         var bar, cnt = 0;
@@ -129,31 +128,35 @@ program
           bars.push(bar);
         }
 
-        file.on('finish', function () {
-          multi.destroy();
-        });
-
-        search
-          .on('data', function (doc) {
-            str += JSON.stringify(doc) + '\n';
+        var data = search
+          .pipe(es.stringify())
+          .pipe(es.through(function (doc) {
+            str += doc;
 
             if (cnt % 1000 === 0) {
-              flush();
+              this.emit('data', str);
+              str = '';
             }
             cnt ++;
 
             bar && bar.ratio(cnt, search.total);
-          })
-          .on('end', function () {
-            flush(file.end.bind(file));
-          });
+          }, function () {
+            this.emit('data', str);
+            str = '';
+            this.emit('end');
+          }));
 
-        function flush(cb) {
-          file.write(str, 'utf8', function () {
-            cb && cb();
-          });
-          str = '';
+        if (cmd.compress) {
+          data = data.pipe(zlib.createGzip({ compress: cmd.compress }));
         }
+
+        data
+          .pipe(file)
+          .on('finish', function () {
+            if (! program.quiet) {
+              multi.destroy();
+            }
+          });
       }
 
       function importProgress() {
